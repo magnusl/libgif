@@ -1,0 +1,2 @@
+# libgif
+GIF parser
