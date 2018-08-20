@@ -9,19 +9,19 @@ namespace gif {
 class BitStream
 {
 public:
-	BitStream(
-		array_view<uint8_t>::const_iterator it,
-		array_view<uint8_t>::const_iterator end);
+    BitStream(
+        array_view<uint8_t>::const_iterator it,
+        array_view<uint8_t>::const_iterator end);
 
-	unsigned GetBits(size_t count);
-	unsigned GetBit();
+    unsigned GetBits(size_t count);
+    array_view<uint8_t>::const_iterator readDataTerminator();
 
 private:
-	array_view<uint8_t>::const_iterator iterator_;
-	array_view<uint8_t>::const_iterator end_;
-	uint8_t byte_;
-	uint8_t count_;
-	uint8_t bytesInBlock_;
+    array_view<uint8_t>::const_iterator iterator_;
+    array_view<uint8_t>::const_iterator end_;
+    uint8_t byte_;
+    uint8_t bitsLeftInByte_;
+    uint8_t bytesInBlock_;
 };
 
 } // namespace gif

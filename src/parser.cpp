@@ -191,106 +191,225 @@ ApplicationExtension ParseApplicationExtension(
     return result;
 }
 
-void Output(std::vector<uint8_t>& output, const lzw::ByteArray& data)
+/*****************************************************************************/
+/*                                Image decoding                             */
+/*****************************************************************************/
+namespace {
+
+struct Dictionary
 {
-    static int i = 0;
-    i += data.size();
-    std::cout << "has emitted: " << i << " bytes" << std::endl;
+    std::array<int16_t, 4096> prefix;
+    std::array<int16_t, 4096> length;
+    std::array<uint8_t, 4096> byteValue;
+    uint16_t minCodeSize;
+    uint16_t codeLength;
+    uint16_t clearCode;
+    uint16_t eoiCode;
+    uint16_t currentIndex;
+    uint16_t maxCode;
+};
+
+// resets a dictionary
+void reset(Dictionary& dictionary)
+{
+    const size_t dictionarySize = (1 << dictionary.minCodeSize);
+    dictionary.codeLength = dictionary.minCodeSize + 1;
+    dictionary.clearCode = dictionarySize;
+    dictionary.eoiCode = dictionary.clearCode + 1;
+    dictionary.currentIndex = dictionary.clearCode + 2;
+    dictionary.maxCode = (1 << dictionary.codeLength) - 1;
 }
 
-void ParseImageData(
+// initializes a dictionary with the initial values
+void init(Dictionary& dictionary, size_t minCodeSize)
+{
+    dictionary.minCodeSize = minCodeSize;
+    size_t dictionarySize = (1 << minCodeSize);
+    for(size_t i = 0; i < dictionarySize; i++) {
+        dictionary.prefix[i] = -1;
+        dictionary.byteValue[i] = static_cast<uint8_t>(i);
+        dictionary.length[i] = 1;
+    }
+    reset(dictionary);
+}
+
+inline size_t add(Dictionary& dictionary, int prefix, uint8_t byteValue)
+{
+    auto& ci = dictionary.currentIndex;
+    if (ci < 4096) {
+        if ((ci == dictionary.maxCode) && (dictionary.codeLength < 12)) {
+            ++dictionary.codeLength;
+            dictionary.maxCode = (1 << dictionary.codeLength) - 1;
+        }
+        dictionary.prefix[ci] = prefix;
+        dictionary.byteValue[ci] = byteValue;
+        dictionary.length[ci] = ((prefix < 0) ? 0 : dictionary.length[prefix]) + 1;
+        // return the index where the entry was inserted
+        return ci++;
+    }
+    return ci;
+}
+
+// get the first byte associated with a dictionary entry
+inline uint8_t getFirstByte(
+    Dictionary& dictionary,
+    size_t index)
+{
+    size_t i = index;
+    while(dictionary.prefix[i] != -1) {
+        i = dictionary.prefix[i];
+    }
+    return dictionary.byteValue[i];
+}
+
+/**
+ * \struct  DecodeState
+ */
+struct DecodeState
+{
+    DecodeState(
+        uint8_t minCodeSize,
+        const gif::ImageDescriptor& imageDescriptor,
+        const gif::ColorTable& table,
+        const GraphicControlExtension* graphicControl,
+        Frame& framebuffer) :
+        descriptor(imageDescriptor),
+        colorTable(table),
+        gce(graphicControl),
+        frame(framebuffer),
+        index(0),
+        old(0),
+        px(descriptor.left),
+        py(descriptor.top)
+    {
+        init(dictionary, minCodeSize);
+        // extract the image rectangle
+        left = descriptor.left;
+        right = left + descriptor.width;
+        top = descriptor.top;
+        bottom = top + descriptor.height;
+    }
+
+    const ImageDescriptor& descriptor;
+    const gif::ColorTable& colorTable;
+    const GraphicControlExtension* gce;
+    Frame& frame;
+    Dictionary dictionary;
+
+    // LZW decoding parameters
+    int16_t index;
+    int16_t old;
+    // painting parameters
+    size_t px;  // X position of pen
+    size_t py;  // Y position of pen
+    // image coordinates
+    size_t left;
+    size_t right;
+    size_t top;
+    size_t bottom;
+};
+
+inline void paint(
+    DecodeState& state,
+    size_t index)
+{
+    auto& dictionary = state.dictionary;
+    auto length = dictionary.length[index];
+    std::array<uint8_t, 4096> buffer;
+    // extract the indicies
+    size_t bufferIndex = length - 1;
+    size_t i = index;
+    while(dictionary.prefix[i] != -1) {
+        buffer[bufferIndex] = dictionary.byteValue[i];
+        i = dictionary.prefix[i];
+        --bufferIndex;
+    }
+    buffer[bufferIndex] = dictionary.byteValue[i];
+
+    // check if a background color has been specified for this frame
+    auto& framebuffer = state.frame;
+    if (state.gce && state.gce->transparentColorFlag) {
+        // ignore transparent color index when painting
+        auto tc = state.gce->transparentColorIndex;
+        for(i = 0; i < length; ++i) {
+            auto colorIndex = buffer[i];
+            if (colorIndex != tc) {
+                auto& color = state.colorTable[colorIndex];
+                framebuffer.setPixel(state.px, state.py, color.r, color.g, color.b);
+            }
+            // move the pen to the next position
+            ++state.px;
+            if (state.px >= state.right) {
+                ++state.py;
+                state.px = state.left;
+            }
+        }
+    }
+    else {
+        // no transparent color
+        for(i = 0; i < length; ++i) {
+            auto colorIndex = buffer[i];
+            auto& color = state.colorTable[colorIndex]; // check length?
+            framebuffer.setPixel(state.px, state.py, color.r, color.g, color.b);
+            // move the pen to the next position
+            ++state.px;
+            if (state.px >= state.right) {
+                ++state.py;
+                state.px = state.left;
+            }
+        }
+
+    }
+}
+
+inline void readStartIndex(DecodeState& state, BitStream& input)
+{
+    state.index = input.GetBits(state.dictionary.codeLength);
+    paint(state, state.index);
+    state.old = state.index;
+}
+
+} // namespace
+
+array_view<uint8_t>::const_iterator ParseImageData(
     array_view<uint8_t>::const_iterator& it,
     array_view<uint8_t>::const_iterator end,
-    std::vector<uint8_t>& output)
+    const gif::ImageDescriptor& descriptor,
+    Frame& frame,
+    const gif::ColorTable& table,
+    const GraphicControlExtension* gce)
 {
-    // read the "root size"
-    const uint8_t rootSize = ParseByte(it, end);
-    uint8_t N = rootSize;
-
-    std::cout << "rootSize=" << static_cast<unsigned>(rootSize) << std::endl;
-
-    // initialize the decode table
-    lzw::DecodeTable table(N);
-    
-    // read the length of the first sub-block
-    //uint8_t length = ParseByte(it, end);
-
-    // the input is a bit-stream
+    // initialize the state
+    DecodeState state(ParseByte(it, end), descriptor, table, gce, frame);
     BitStream input(it, end);
 
-    unsigned code, oldCode;
-    
-    // two reserved codes, the first for "clear code", and the second
-    // for "end of information"
-    unsigned cc = (1 << N);
-    unsigned eoi = cc + 1;
-    // the first code for new entries
-    unsigned nextCode = eoi + 1;
+    auto& dictionary = state.dictionary;
+    if (input.GetBits(dictionary.codeLength) != dictionary.clearCode) {
+        throw std::runtime_error("Expected initial clear code");
+    }
 
+    readStartIndex(state, input);
     while(1) {
-
-        code = input.GetBits(N + 1);
-        std::cout << std::dec << "code: " << code << std::endl;
-        if (code == eoi) {
-            // reached end of information
-            break;
-        }
-        else if (code == cc) {
-            // clear-code
-            table.Clear();
-            //std::cout << "Now clear" << std::endl;
-            // reset the code size
-            std::cout << "Clear" << std::endl;
-            N = rootSize;
-            code = input.GetBits(N + 1);
-            if (code == eoi) {
-                break;
+        state.index = input.GetBits(dictionary.codeLength);
+        if (state.index < dictionary.currentIndex) { // Does <index> exist in the dictionary?
+            if (state.index == dictionary.eoiCode) {
+                return input.readDataTerminator();
             }
-            std::cout << "Code after clear: " << std::dec << code << std::endl;
-            nextCode = eoi + 1;
-            // output the string corresponding to code.
-            Output(output, table.Get(code));
-            oldCode = code;
-        }
-        else {
-            if (table.InTable(code)) {
-                //std::cout << "Is in table" << std::endl;
-                // the code is in the table. First emit the string that
-                // corresponds to the current code
-                auto& currentEntry = table.Get(code);
-                Output(output, currentEntry);
-                // concatenate the string for the previous code and with
-                // first character of the new string
-                lzw::ByteArray oldEntry = table.Get(oldCode);
-                oldEntry.push_back(currentEntry.front());
-                // now add the new entry to the dictionary
-                //std::cout << "insert next entry at: " << std::dec << nextCode << std::endl;
-                table.Add(oldEntry, nextCode);
-                if (nextCode == ((1 << N) - 1)) {
-                    ++N;
-
-                }
-                ++nextCode;
-                oldCode = code;
+            else if (state.index == dictionary.clearCode) {
+                reset(dictionary);
+                readStartIndex(state, input);
             }
-            else {
-                //std::cout << "Code: " << static_cast<unsigned>(code) << " is not in the table" << std::endl;
-
-                // the code is not in the dictionary, hande the speciaml K omega K case
-                lzw::ByteArray outString = table.Get(oldCode);
-                outString.push_back(outString.front());
-                // output the string
-                Output(output, outString);
-                // add the string to the dictionary
-                //std::cout << "insert next entry at: " << std::dec << nextCode << std::endl;
-                table.Add(outString, nextCode);
-                if (nextCode == ((1 << N) - 1)) {
-                    ++N;
-                }
-                ++nextCode;
-                oldCode = code;
+            else { // code that already exists
+                paint(state, state.index);
+                add(dictionary, state.old, getFirstByte(dictionary, state.index));
             }
         }
+        else if (state.index == dictionary.currentIndex) {      // <index> does not exist in the dictionary
+            auto b = getFirstByte(dictionary, state.old);       // B <- first byte of string at <old>
+            paint(state, add(dictionary, state.old, b));
+        }
+        // <old> <- <index>
+        state.old = state.index;
     }
 }
 

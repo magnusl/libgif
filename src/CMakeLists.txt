@@ -13,6 +13,5 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 add_library(gif
 	parser.cpp
-	lzw.cpp
 	bit_stream.cpp
 )

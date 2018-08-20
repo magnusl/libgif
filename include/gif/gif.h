@@ -39,6 +39,40 @@ struct Color
     uint8_t b;
 };
 
+/**
+ * \struct  Frame
+ */
+struct Frame
+{
+    Frame(size_t w, size_t h) :
+        width(w),
+        height(h),
+        pitch(w * 4),
+        pixels(pitch * h)
+    {
+        // empty
+    }
+
+    inline void setPixel(
+        size_t x, size_t y, uint8_t r, uint8_t g, uint8_t b)
+    {
+        const size_t index = (y * pitch) + (x * 4);
+        pixels[index] = r;
+        pixels[index + 1] = g;
+        pixels[index + 2] = b;
+        pixels[index + 3] = 0xff;
+    }
+
+    uint8_t* rowPointer(size_t y)
+    {
+        return &pixels[y * pitch];
+    }
+
+    size_t width;
+    size_t height;
+    size_t pitch;
+    std::vector<uint8_t> pixels;    // RGBA pixels
+};
 
 using ColorTable = std::vector<Color>;
 
@@ -145,10 +179,16 @@ ImageDescriptor ParseImageDescriptor(
     array_view<uint8_t>::const_iterator& it,
     array_view<uint8_t>::const_iterator end);
 
-void ParseImageData(
+/**
+ * \brief   Parses a image frame
+ */
+array_view<uint8_t>::const_iterator ParseImageData(
     array_view<uint8_t>::const_iterator& it,
     array_view<uint8_t>::const_iterator end,
-    std::vector<uint8_t>& output);
+    const gif::ImageDescriptor& descriptor,
+    Frame& frame,
+    const gif::ColorTable& table,
+    const GraphicControlExtension* gce);
 
 } // namespace gif
 
