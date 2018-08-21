@@ -6,7 +6,6 @@
 
 #include <gif/gif.h>
 #include <gif/bit_stream.h>
-#include <gif/lzw.h>
 #include <iostream>
 
 namespace gif {
