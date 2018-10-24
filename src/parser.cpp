@@ -11,8 +11,8 @@
 namespace gif {
 
 uint8_t PeekByte(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end)
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end)
 {
     if (it == end) {
         throw std::runtime_error("Can't read byte from stream, EOF reached.");
@@ -21,8 +21,8 @@ uint8_t PeekByte(
 }
 
 uint8_t ParseByte(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end)
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end)
 {
     if (it == end) {
         throw std::runtime_error("Can't read byte from stream, EOF reached.");
@@ -33,8 +33,8 @@ uint8_t ParseByte(
 }
 
 uint16_t ParseShort(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end)
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end)
 {
     const uint8_t lsb = ParseByte(it, end);
     const uint8_t msb = ParseByte(it, end);
@@ -42,8 +42,8 @@ uint16_t ParseShort(
 }
 
 std::string ParseString(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end,
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end,
     size_t length)
 {
     std::string result;
@@ -54,8 +54,8 @@ std::string ParseString(
 }
 
 Version ParseHeader(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end)
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end)
 {
     // must start with "GIF"
     auto id = ParseString(it, end, 3);
@@ -77,8 +77,8 @@ Version ParseHeader(
 }
 
 LogicalScreenDescriptor ParseLogicalScreenDescriptor(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end)
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end)
 {
     LogicalScreenDescriptor result;
     // width/height
@@ -98,8 +98,8 @@ LogicalScreenDescriptor ParseLogicalScreenDescriptor(
 void ParseColorTable(
     ColorTable& table,
     unsigned tableSize,
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end)
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end)
 {
     table.resize(tableSize);
     for(unsigned i = 0; i < tableSize; ++i) {
@@ -110,8 +110,8 @@ void ParseColorTable(
 }
 
 ImageDescriptor ParseImageDescriptor(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end)
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end)
 {
     // must start with an "Image Separator" byte with value 0x2c
     if (ParseByte(it, end) != 0x2c) {
@@ -134,8 +134,8 @@ ImageDescriptor ParseImageDescriptor(
 }
 
 GraphicControlExtension ParseGraphicControlExtension(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end)
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end)
 {
     GraphicControlExtension result;
     if (ParseByte(it, end) != 0xF9) {
@@ -162,8 +162,8 @@ GraphicControlExtension ParseGraphicControlExtension(
 }
 
 ApplicationExtension ParseApplicationExtension(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end)
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end)
 {
     if (ParseByte(it, end) != 0xFF) {
         throw std::runtime_error("Unexpected block label.");
@@ -370,9 +370,9 @@ inline void readStartIndex(DecodeState& state, BitStream& input)
 
 } // namespace
 
-array_view<uint8_t>::const_iterator ParseImageData(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end,
+std::basic_string_view<uint8_t>::const_iterator ParseImageData(
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end,
     const gif::ImageDescriptor& descriptor,
     Frame& frame,
     const gif::ColorTable& table,

@@ -108,10 +108,11 @@ int main(int argc, char**argv)
     amask = 0xff000000;
 #endif
 
-    array_view<uint8_t> view(file);
 
-    array_view<uint8_t>::const_iterator it = view.begin();
-    array_view<uint8_t>::const_iterator end = view.end();
+    std::basic_string_view<uint8_t> view(file.data(), file.size());
+
+    std::basic_string_view<uint8_t>::const_iterator it = view.begin();
+    std::basic_string_view<uint8_t>::const_iterator end = view.end();
 
     try {
         // read the GIF header

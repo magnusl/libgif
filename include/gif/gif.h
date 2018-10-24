@@ -1,11 +1,11 @@
 #ifndef LIBGIF_GIF_H
 #define LIBGIF_GIF_H
 
-#include "array_view.h"
 #include <stdint.h>
 #include <vector>
 #include <string>
 #include <array>
+#include <string_view>
 
 namespace gif {
 
@@ -113,44 +113,44 @@ struct ApplicationExtension
 };
 
 uint8_t PeekByte(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end);
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end);
 
 /**
  * \brief   Parses a byte from the stream.
  */
 uint8_t ParseByte(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end);
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end);
 
 /**
  * \brief   Parses a 16-bit unsigned integer from the stream.
  */
 uint16_t ParseShort(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end);
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end);
 
 /**
  * \brief   Parses a string
  */
 std::string ParseString(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end,
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end,
     size_t length);
 
 /**
  * \struct  Parses the GIF header
  */
 Version ParseHeader(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end);
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end);
 
 /**
  * \brief   Parses the logical screen descriptor
  */
 LogicalScreenDescriptor ParseLogicalScreenDescriptor(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end);
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end);
 
 /**
  * \brief   Parses a color table
@@ -158,33 +158,33 @@ LogicalScreenDescriptor ParseLogicalScreenDescriptor(
 void ParseColorTable(
     ColorTable& table,
     unsigned tableSize,
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end);
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end);
 
 /**
  * \brief   Parses a GraphicControlExtension
  */
 GraphicControlExtension ParseGraphicControlExtension(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end);
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end);
 
 ApplicationExtension ParseApplicationExtension(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end);
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end);
 
 /**
  * \brief   Parses an ImageDescriptor
  */
 ImageDescriptor ParseImageDescriptor(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end);
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end);
 
 /**
  * \brief   Parses a image frame
  */
-array_view<uint8_t>::const_iterator ParseImageData(
-    array_view<uint8_t>::const_iterator& it,
-    array_view<uint8_t>::const_iterator end,
+std::basic_string_view<uint8_t>::const_iterator ParseImageData(
+    std::basic_string_view<uint8_t>::const_iterator& it,
+    std::basic_string_view<uint8_t>::const_iterator end,
     const gif::ImageDescriptor& descriptor,
     Frame& frame,
     const gif::ColorTable& table,

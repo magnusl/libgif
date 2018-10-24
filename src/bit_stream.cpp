@@ -5,8 +5,8 @@
 namespace gif {
 
 BitStream::BitStream(
-    array_view<uint8_t>::const_iterator it,
-    array_view<uint8_t>::const_iterator end) :
+    std::basic_string_view<uint8_t>::const_iterator it,
+    std::basic_string_view<uint8_t>::const_iterator end) :
     iterator_(it),
     end_(end),
     byte_(0),
@@ -49,7 +49,7 @@ unsigned BitStream::GetBits(size_t count)
     return result;
 }
 
-array_view<uint8_t>::const_iterator BitStream::readDataTerminator()
+std::basic_string_view<uint8_t>::const_iterator BitStream::readDataTerminator()
 {
     // skip any remaining bytes in the current block
     while(bytesInBlock_ > 0) {
