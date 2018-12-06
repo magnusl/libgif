@@ -1,6 +1,5 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.10)
 project (libgif)
-include(CTest)
 
 # path for additional modules
 find_package(Boost REQUIRED)
